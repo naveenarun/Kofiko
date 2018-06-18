@@ -54,6 +54,7 @@ for iFileIter=1:iNumMediaFiles
     
     acAttributes = cell(0);
     strLengthMS = [];
+    strRewardProb = [];
     if iFileIter <= iNumImages
         % We are reading an image entry
         strFileName = strctXML.Media.Image{iFileIter}.FileName;
@@ -64,6 +65,9 @@ for iFileIter=1:iNumMediaFiles
         if isfield(strctXML.Media.Image{iFileIter},'LengthMS')
             strLengthMS = strctXML.Media.Image{iFileIter}.LengthMS;
         end
+        if isfield(strctXML.Media.Image{iFileIter},'RewardProb')
+            strRewardProb = strctXML.Media.Image{iFileIter}.RewardProb;
+        end
     else
         strFileName = strctXML.Media.Movie{iFileIter-iNumImages}.FileName;
         strName = strctXML.Media.Movie{iFileIter-iNumImages}.Name;
@@ -73,14 +77,25 @@ for iFileIter=1:iNumMediaFiles
         if isfield(strctXML.Media.Movie{iFileIter-iNumImages},'LengthMS')
             strLengthMS = strctXML.Media.Movie{iFileIter-iNumImages}.LengthMS;
         end
+        if isfield(strctXML.Media.Movie{iFileIter-iNumImages},'RewardProb')
+            strRewardProb = strctXML.Media.Movie{iFileIter-iNumImages}.RewardProb;
+        end
     end
     
     if isempty(strLengthMS)
-             fprintf('\nA media file is missing the "LengthMS" field (%s) \n',strFileName);
+            fprintf('\nA media file is missing the "LengthMS" field (%s) \n',strFileName);
             strctDesign = [];
             return;
     end
-   
+    
+    
+    if isempty(strRewardProb)
+            fprintf('\nA media file is missing the "RewardProb" field (%s) \n',strFileName);
+            strRewardProb = '0';
+            %strctDesign = [];
+            %return;
+    end
+    
     bExist = exist(strFileName,'file');
     if ~bExist
         % exist sometimes fails for unknown reason... verify again with
@@ -94,6 +109,7 @@ for iFileIter=1:iNumMediaFiles
     strctDesign.m_astrctMedia(iFileIter).m_bMovie = iFileIter>iNumImages;
     strctDesign.m_astrctMedia(iFileIter).m_acAttributes = acAttributes;
     strctDesign.m_astrctMedia(iFileIter).m_strLengthMS = strLengthMS;
+    strctDesign.m_astrctMedia(iFileIter).m_strRewardProb = strRewardProb;
     acMediaName{iFileIter} =strName;
 end
 fprintf('\b\b\b\bDone.\n');

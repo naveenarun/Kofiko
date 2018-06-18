@@ -224,9 +224,90 @@ fMaxFixations = 100 / fPositiveIncrement;
 
 fJuiceTimeLowMS = g_strctParadigm.JuiceTimeMS.Buffer(g_strctParadigm.JuiceTimeMS.BufferIdx);
 fJuiceTimeHighMS = g_strctParadigm.JuiceTimeHighMS.Buffer(g_strctParadigm.JuiceTimeHighMS.BufferIdx);
-
+%{
 fGazeTimeSec = fGazeTimeLowSec + (fGazeTimeHighSec-fGazeTimeLowSec) * (1- g_strctParadigm.m_strctDynamicJuice.m_iFixationCounter / fMaxFixations);
 fJuiceTimeMS =  fJuiceTimeLowMS + (fJuiceTimeHighMS-fJuiceTimeLowMS) * (g_strctParadigm.m_strctDynamicJuice.m_iFixationCounter / fMaxFixations);
+%}
+
+
+
+% My stuff below
+fElapsedTimeSec = fCurrTime - g_strctParadigm.m_fStimulusStartTimer;
+m_afMediaOnsetTimeSec = [0, cumsum(g_strctParadigm.m_strctCurrentRun.m_afDisplayTimeMS)/1000];
+iCurrentMedia = find(m_afMediaOnsetTimeSec(1:end-1) <= fElapsedTimeSec & ...
+						m_afMediaOnsetTimeSec(2:end) >= fElapsedTimeSec,1,'last');
+fGazeTimeSec = g_strctParadigm.m_strctCurrentRun.m_afDisplayTimeMS(iCurrentMedia)/1000;
+fJuiceTimeMS = fJuiceTimeLowMS;
+
+
+switch g_strctParadigm.m_strctDynamicJuice.m_iState
+    case 1
+		% The monkey has not fixated on anything yet
+        g_strctParadigm.iPrevMedia = 1;
+        g_strctParadigm.m_strctDynamicJuice.bJuiceOwed = false;
+        if bFixating
+            g_strctParadigm.m_strctDynamicJuice.m_iState = 2;
+            g_strctParadigm.m_strctDynamicJuice.m_fTotalFixationTime = 0;
+            g_strctParadigm.m_strctDynamicJuice.m_fLastKnownFixationTime = fCurrTime;
+            g_strctParadigm.m_strctDynamicJuice.iNumMediaContFixate = 0;
+        else
+            % Monkey is not fixating. Stay in this mode until monkey fixates....
+            g_strctParadigm.m_strctDynamicJuice.m_iFixationCounter = 0;
+            g_strctParadigm.m_strctDynamicJuice.m_fLastKnownNonFixationTime = fCurrTime;
+            g_strctParadigm.m_strctDynamicJuice.iNumMediaContFixate = -1;
+        end
+    case 2
+        % Monkey was fixating last iteration
+        if bFixating
+            % Good. How long did it pass since the last fixation ?
+            g_strctParadigm.m_strctDynamicJuice.m_fTotalFixationTime = g_strctParadigm.m_strctDynamicJuice.m_fTotalFixationTime + (fCurrTime-g_strctParadigm.m_strctDynamicJuice.m_fLastKnownFixationTime);
+            g_strctParadigm.m_strctDynamicJuice.m_fLastKnownFixationTime = fCurrTime;
+            if g_strctParadigm.m_strctDynamicJuice.bJuiceOwed
+                reward_prob = g_strctParadigm.m_strctCurrentRun.m_afRewardProb(g_strctParadigm.iPrevMedia);
+                % Reset Counters
+                g_strctParadigm.m_strctDynamicJuice.m_fTotalNonFixationTime = 0;
+                g_strctParadigm.m_strctDynamicJuice.m_fTotalFixationTime = 0;
+                g_strctParadigm.m_strctDynamicJuice.bJuiceOwed = false;
+                % Give Juice!
+%                fnParadigmToKofikoComm('DisplayMessage', sprintf('Juice Time = %.2f ,Gaze Time = %.1f',fJuiceTimeMS,fGazeTimeSec*1e3 ) );
+                if (rand() < reward_prob)
+                    fnParadigmToKofikoComm('Juice',fJuiceTimeMS );
+                end
+                if g_strctParadigm.m_strctDynamicJuice.m_iFixationCounter < fMaxFixations
+                    g_strctParadigm.m_strctDynamicJuice.m_iFixationCounter = g_strctParadigm.m_strctDynamicJuice.m_iFixationCounter + 1;
+                end
+                g_strctParadigm.iPrevMedia = iCurrentMedia;
+            end
+            % If the media has changed, then increment iNumMediaContFixate.
+            if iCurrentMedia ~= g_strctParadigm.iPrevMedia
+                g_strctParadigm.m_strctDynamicJuice.iNumMediaContFixate = g_strctParadigm.m_strctDynamicJuice.iNumMediaContFixate + 1;
+                if g_strctParadigm.m_strctDynamicJuice.iNumMediaContFixate >= 1
+                    g_strctParadigm.m_strctDynamicJuice.bJuiceOwed = true;
+                end
+            end
+            
+        else
+            g_strctParadigm.m_strctDynamicJuice.m_iState = 3;
+            g_strctParadigm.m_strctDynamicJuice.m_fLastKnownNonFixationTime = fCurrTime;
+        end
+    case 3
+        % Monkey was not fixating last iteration
+        if bFixating
+            g_strctParadigm.m_strctDynamicJuice.m_fLastKnownFixationTime = fCurrTime;
+            g_strctParadigm.m_strctDynamicJuice.m_iState = 2;
+        else
+            g_strctParadigm.m_strctDynamicJuice.m_fTotalNonFixationTime = g_strctParadigm.m_strctDynamicJuice.m_fTotalNonFixationTime + (fCurrTime-g_strctParadigm.m_strctDynamicJuice.m_fLastKnownNonFixationTime);
+            g_strctParadigm.m_strctDynamicJuice.m_fLastKnownNonFixationTime = fCurrTime;
+            if g_strctParadigm.m_strctDynamicJuice.m_fTotalNonFixationTime > fBlinkTimeSec
+                g_strctParadigm.m_strctDynamicJuice.m_fTotalFixationTime = 0;
+                g_strctParadigm.m_strctDynamicJuice.m_iFixationCounter = 0;
+                g_strctParadigm.m_strctDynamicJuice.iNumMediaContFixate = -1;
+            end
+        end
+end
+
+return;
+%{
 
 switch g_strctParadigm.m_strctDynamicJuice.m_iState
     case 0
@@ -255,7 +336,7 @@ switch g_strctParadigm.m_strctDynamicJuice.m_iState
                 g_strctParadigm.m_strctDynamicJuice.m_fTotalNonFixationTime = 0;
                 g_strctParadigm.m_strctDynamicJuice.m_fTotalFixationTime = 0;
                 % Give Juice!
-%                fnParadigmToKofikoComm('DisplayMessage', sprintf('Juice Time = %.2f ,Gaze Time = %.1f',fJuiceTimeMS,fGazeTimeSec*1e3 ) );
+                %fnParadigmToKofikoComm('DisplayMessage', sprintf('Juice Time = %.2f ,Gaze Time = %.1f',fJuiceTimeMS,fGazeTimeSec*1e3 ) );
                 fnParadigmToKofikoComm('Juice',fJuiceTimeMS );
                 if g_strctParadigm.m_strctDynamicJuice.m_iFixationCounter < fMaxFixations
                     g_strctParadigm.m_strctDynamicJuice.m_iFixationCounter = g_strctParadigm.m_strctDynamicJuice.m_iFixationCounter + 1;
@@ -282,4 +363,5 @@ switch g_strctParadigm.m_strctDynamicJuice.m_iState
         end
 end
 
-return;
+%}
+

@@ -68,6 +68,21 @@ fPositiveIncrement = g_strctParadigm.PositiveIncrement.Buffer(:,:,g_strctParadig
 fMaxFixations = 100 / fPositiveIncrement;
 fPercCorrect =  min(1,g_strctParadigm.m_strctDynamicJuice.m_iFixationCounter / fMaxFixations);
 fGazeTimeSec = fGazeTimeLowSec + (fGazeTimeHighSec-fGazeTimeLowSec) * (1- g_strctParadigm.m_strctDynamicJuice.m_iFixationCounter / fMaxFixations);
+% MODIFIED GAZE TIME HERE
+%{
+fCurrTime = GetSecs;
+try
+    fElapsedTimeSec = fCurrTime - g_strctParadigm.m_fStimulusStartTimer;
+    m_afMediaOnsetTimeSec = [0, cumsum(g_strctParadigm.m_strctCurrentRun.m_afDisplayTimeMS)/1000];
+    iCurrentMedia = find(m_afMediaOnsetTimeSec(1:end-1) <= fElapsedTimeSec & ...
+            m_afMediaOnsetTimeSec(2:end) >= fElapsedTimeSec,1,'last');
+    fGazeTimeSec = g_strctParadigm.m_strctCurrentRun.m_afDisplayTimeMS(iCurrentMedia)/1000;
+catch ME
+    fGazeTimeSec = 1;
+end
+%}
+%
+
 fPerc = g_strctParadigm.m_strctDynamicJuice.m_fTotalFixationTime / fGazeTimeSec;
 
 fRadius = 50;

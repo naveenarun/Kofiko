@@ -1,3 +1,7 @@
+# Changes made in this verison of Kofiko:
+#### Naveen 2018
+In this version, BlockDesignNew is modified so that fMRI paradigms include an extra parameter, RewardProb, which can range from 0 to 100. The example in Documents/Examples for Block Design/fMRI-face-localizer-shay.xml should work if the extra parameter is added for each media file.
+
 # Kofiko Tutorial Getting started
 #### Meyer 2015
 https://github.com/ninehundred1

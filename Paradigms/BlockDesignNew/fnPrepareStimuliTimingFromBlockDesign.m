@@ -52,6 +52,7 @@ strctRun.m_aiNumTRperBlock = zeros(1,iNumBlocks);
 strctRun.m_fTR_MS = fTR_MS;
 strctRun.m_aiMediaList = [];
 strctRun.m_afDisplayTimeMS = [];
+strctRun.m_afRewardProb = [];
 strctRun.m_acMicroStim = cell(1, iNumBlocks);
 strctRun.m_afBlockLengthSec = zeros(1,iNumBlocks);
 for iBlockIter=1:iNumBlocks
@@ -97,13 +98,21 @@ for iBlockIter=1:iNumBlocks
         
         iSelectedMedia = aiMediaIndices(iImageCounter);
         fMediaTimeMS = fnParseVariable(g_strctParadigm.m_strctDesign.m_astrctMedia(iSelectedMedia),'m_strLengthMS',500);
+        fRewardProb = fnParseVariable(g_strctParadigm.m_strctDesign.m_astrctMedia(iSelectedMedia),'m_strRewardProb',500)/100;
+        
         if isempty(fMediaTimeMS)
             fprintf('*** CRITICAL ERROR. Cannot parse LengthMS field in media %s\n',g_strctParadigm.m_strctDesign.m_astrctMedia(iSelectedMedia).m_strName);
             fprintf('*** Unknown Global? Assuming 500 ms.\n');
             fMediaTimeMS = 500;
         end;
+        if isempty(fMediaTimeMS)
+            fprintf('*** CRITICAL ERROR. Cannot parse RewardProb field in media %s\n',g_strctParadigm.m_strctDesign.m_astrctMedia(iSelectedMedia).m_strName);
+            fprintf('*** Unknown Global? Assuming 0%%.\n');
+            fRewardProb = 0;
+        end;
         strctRun.m_aiMediaList = [strctRun.m_aiMediaList, iSelectedMedia];
         strctRun.m_afDisplayTimeMS = [strctRun.m_afDisplayTimeMS,fMediaTimeMS ];
+        strctRun.m_afRewardProb = [strctRun.m_afRewardProb,fRewardProb ];
         
         iImageCounter = iImageCounter + 1;
         if iImageCounter > length(aiMediaIndices)
